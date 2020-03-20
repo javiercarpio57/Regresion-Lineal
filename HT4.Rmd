@@ -12,14 +12,15 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Regresión Lineal Multiple
 
-De igual manera que en la hoja de trabajo anterior , las variables a utilizar para la creación de árbole de desición son: 
+De igual manera que en la hoja de trabajo anterior, las variables a utilizar para la creación de árboles de desición son: 
 
           * GarageYrBlt
           * GrLivArea
           * X1stFlrSF
           * GarageCars
-          * X2stFlrSF
+          * X2ndFlrSF
 
+Así que para mantener una sincronía en el análisis, se utilizarán las mismas variables para poder comparar los resultados.
   
 ### Prediciendo SalePrice a partir de las demas variables
 
@@ -36,54 +37,43 @@ library(randomForest)
 library(dplyr) 
 library(fpc) 
 library(plyr)
+library(corrplot)
+library(nortest)
+library(caret)
 ```
 
 Filtramos las variables que sean numéricas para analizar su comportamiento.
 ```{r}
 porcentaje<-0.7
 datos<-read.csv("train.csv")
-
-datosFilter <-select(datos, LotFrontage, LotArea, YearBuilt, YearRemodAdd, MasVnrArea, BsmtFinSF1,BsmtFinSF2,BsmtUnfSF,TotalBsmtSF,X1stFlrSF,X2ndFlrSF,LowQualFinSF,GrLivArea,TotRmsAbvGrd,Fireplaces,GarageYrBlt,GarageCars,GarageArea,WoodDeckSF,OpenPorchSF,EnclosedPorch,ScreenPorch,PoolArea,MoSold,YrSold,SalePrice)
+datosFilter <-select(datos, GarageYrBlt, GrLivArea, X1stFlrSF, X2ndFlrSF, GarageCars, SalePrice)
 
 #Data cleanup
 datosFilter <- na.omit(datosFilter)
 ```
 
-Se separa el dataset a uno de train y otro de test.
+Se separa el dataset a uno de train y otro de test. Ademas, de las variables antes mencionadas, se quitó X2ndFlrSF pues no tiene una alta correlación.
 ```{r}
 set.seed(123)
 
 corte <- sample(nrow(datosFilter),nrow(datosFilter)*porcentaje)
 train<-datos[corte,]
-train <- select(train, LotFrontage, LotArea, YearBuilt, YearRemodAdd, MasVnrArea, BsmtFinSF1, BsmtFinSF2, BsmtUnfSF, TotalBsmtSF, X1stFlrSF, X2ndFlrSF, LowQualFinSF, GrLivArea, TotRmsAbvGrd, Fireplaces, GarageYrBlt, GarageCars, GarageArea, WoodDeckSF, OpenPorchSF, EnclosedPorch, ScreenPorch, PoolArea, MoSold, YrSold, SalePrice)
+train <-select(datosFilter, GarageYrBlt, GrLivArea, X1stFlrSF, GarageCars, SalePrice)
 
 
 test<-datos[-corte,]
-test <- select(test, LotFrontage, LotArea, YearBuilt, YearRemodAdd, MasVnrArea, BsmtFinSF1, BsmtFinSF2, BsmtUnfSF, TotalBsmtSF, X1stFlrSF, X2ndFlrSF, LowQualFinSF, GrLivArea, TotRmsAbvGrd, Fireplaces, GarageYrBlt, GarageCars, GarageArea, WoodDeckSF, OpenPorchSF, EnclosedPorch, ScreenPorch, PoolArea, MoSold, YrSold, SalePrice)
-
+test <-select(test, GarageYrBlt, GrLivArea, X1stFlrSF, GarageCars, SalePrice)
 ```
 
 Vamos a hacer un modelo para predecir el precio de la casa con las variables numéricas que son numéricas:   
 
 ```{r}
-fitMLM_Price<-lm(SalePrice~.,data = train)
+fitMLM_Price<-lm(SalePrice~., data = train)
 ```
 
 El resumen del modelo:
 
 ```{r}
-summary(fitMLM_Price)
-```
-  
-Si analizamos este resumen del modelo, podemos observar que es muy malo. La razón de esto, es que estamos analizando todas las variables numéricas, las cuáles puede que muchas no tengan relevancia para predecir el precio. Y, la media de los residuales está muy lejana a 0. Se procederá con eliminar las variables con nivel de significancia distinto a ***.
-
-```{r}
-train <- select(train, LotArea, BsmtFinSF1, BsmtUnfSF, GrLivArea, GarageArea, SalePrice)
-test <- select(test, LotArea, BsmtFinSF1, BsmtUnfSF, GrLivArea, GarageArea, SalePrice)
-
-```
-```{r}
-fitMLM_Price<-lm(SalePrice~.,data = train)
 summary(fitMLM_Price)
 ```
 
@@ -95,70 +85,56 @@ plot(train)
 ```
 
 ```{r}
-# install.packages("corrplot")
-library(corrplot)
 matriz_cor <- cor(train)
 matriz_cor
 corrplot(matriz_cor)
 ```
 
-    
-Al ver la correlación entre las variables, se vuelven a filtrar las variables que no aportan al modelo...
-```{r}
-train <- select(train, GrLivArea, GarageArea, SalePrice)
-test <- select(test, GrLivArea, GarageArea, SalePrice)
-
-```
-```{r}
-fitMLM_Price<-lm(SalePrice~.,data = train)
-summary(fitMLM_Price)
-```
-```{r}
-# install.packages("corrplot")
-library(corrplot)
-matriz_cor <- cor(train)
-matriz_cor
-corrplot(matriz_cor)
-```
   
-Finalmente, se considera que este par de variables: GrLivArea y GarageArea son las variables que tienen una estrecha relación con SalePrice. Ahora, se analizarán los residuos:
+Tanto como la gráfica y la tabla de correlaciones muestra que cada variable tiene una fuerte relación con SalePrice. Y, además, no existe una alta multicolinealidad entre las variables, así que se pueden utilizar. Ahora, se analizarán los residuos:
 
 ```{r}
 plot(fitMLM_Price)
 ```
   
 
-En los gráficos se pueden ver que los residuos están aleatoriamente distribuidos a un valor relativamente cercano a 0 y que no siguen ningún patrón. El gráfico Q-Q parece que no sigue una distribución normal, por lo que se verificara:
+En los gráficos se pueden ver que los residuos no están muy bien distribuidos aleatoriamente a 0, sino que se depesga del eje, aunque, los residuales no siguen ningún patrón. El gráfico Q-Q parece que no sigue una distribución normal, por lo que se verificara:
 
 ```{r}
 hist(fitMLM_Price$residuals)
 boxplot(fitMLM_Price$residuals)
 ```
 
-La prueba de lilliefors da que se rechaza la hipotesis de normalidad para un valor de significación de 0.05.
+La prueba de lilliefors da como resultado que se rechaza la hipotesis de normalidad, es decir, los residuales no se comportan de forma normal.
 ```{r}
-library(nortest)
 lillie.test(fitMLM_Price$residuals)
 ```
-Es posible que el modelo no sea tan bueno para predecir. Pero podemos probarlo.   
+
+Es posible que el modelo no sea tan bueno para predecir, pero veremos gráficamente y analíticamente cómo se comporta.
 ```{r}
-library(caret)
 predMLM<-predict(fitMLM_Price, newdata = test)
-RMSE(predMLM, test$SalePrice)
+RMSE(predMLM, test$SalePrice, na.rm = TRUE)
 ```
+
+Vemos que el Error cuadrático medio es de: 39799.01, el cuál es muy alto... Si ploteamos los datos predichos contra los reales:
 
 ```{r}
 plot(test$SalePrice,col="blue")
 points(predMLM, col="red")
 ```
   
-La ecuación quedaría:
+Vemos que el modelo se aproxima a los resultados y predice exactamente a algunos valores reales, sin embargo para valores muy alto o bajo (valores atípico) no los predice correctamente.
 
-$SalePrice = `r round(fitMLM_Price$coefficients[3], 2)`*GarageArea + `r round(fitMLM_Price$coefficients[2],2)`*GrLivArea `r round(fitMLM_Price$coefficients[1], 1)`$
-title: "Hoja de trabajo Regresión-lineal"
-output: html_notebook
----
+La ecuación quedaría de la siguiente forma:
 
+```{r}
+fitMLM_Price
+```
+
+
+$SalePrice = `r round(fitMLM_Price$coefficients[1], 2)` + `r round(fitMLM_Price$coefficients[2],2)`*GarageYrBlt + `r round(fitMLM_Price$coefficients[3], 2)`*GrLivArea + `r round(fitMLM_Price$coefficients[4], 2)`* X1stFlrSF + `r round(fitMLM_Price$coefficients[5], 2)`* GarageCars$
+
+Ahora, analicemos, ¿qué pasa con árboles de regresión?
 
 ```{r}
 houses <- read.csv("train.csv")
@@ -174,7 +150,6 @@ set.seed(123)
 trainRowsNumber<-sample(1:nrow(housesFilter),porciento*nrow(housesFilter))
 train<-housesFilter[trainRowsNumber,]
 test<-housesFilter[-trainRowsNumber,]
-head(train)
 ```
 
 A continuación se presenta el árbol de regresión generado a partir de el conjunto datos de prueba.
@@ -183,23 +158,15 @@ A continuación se presenta el árbol de regresión generado a partir de el conj
 #train$grupo <- mapvalues(train$grupo, c(1,2,3), c("Intermedio","Bajo","Caro"))
 dt_model<-rpart(train$SalePrice~.,train,method = "anova")
 rpart.plot(dt_model)
-dt_model
 ```
 
 Al comparar, el conjunto de datos de prueba con el conjunto de datos generados por el árbol optenemos. 
 
 ```{r}
-head(test)
 prediccion <- predict(dt_model, newdata = test)
 plot(test$SalePrice, col='blue')
 points(prediccion, col='green')
 ```
 
-
-```{r echo=FALSE}
-#When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
-
-#The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
-```
 
 
