@@ -1,0 +1,85 @@
+---
+title: "Hoja de trabajo Regresión-lineal"
+output: html_notebook
+---
+
+
+```{r echo=FALSE}
+#This is an [R Markdown](http://rmarkdown.rstudio.com) Notebook. When you execute code within the notebook, the results appear beneath the code. 
+#Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Ctrl+Shift+Enter*. 
+```
+
+
+
+```{r}
+library(rpart)
+library(caret)
+library(rpart.plot)
+library(randomForest)
+library(dplyr) #Para usar select
+library(fpc) #Para la gráfica 
+library(plyr)
+setwd("~/Documents/Mineria/Regresion-Lineal")
+houses <- read.csv("train.csv")
+```
+```{r echo=FALSE}
+#Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+```
+
+De igual manera que en la hoja de trabajo anterior , las variables a utilizar para la creación de árbole de desición son: 
+
+          * GarageYrBlt
+          * GrLivArea
+          * X1stFlrSF
+          * GarageCars
+          * X2stFlrSF
+```{r}
+housesFilter <-select(houses, LotFrontage, LotArea, YearBuilt, YearRemodAdd, MasVnrArea, BsmtFinSF1,BsmtFinSF2,BsmtUnfSF,TotalBsmtSF,X1stFlrSF,X2ndFlrSF,LowQualFinSF,GrLivArea,TotRmsAbvGrd,Fireplaces,GarageYrBlt,GarageCars,GarageArea,WoodDeckSF,OpenPorchSF,EnclosedPorch,ScreenPorch,PoolArea,MoSold,SalePrice,YrSold)
+
+#Data cleanup
+housesFilter <- na.omit(housesFilter)
+cluster <- housesFilter
+km<-kmeans(housesFilter,3)
+housesFilter$grupo<-km$cluster
+housesFiltertree <- select(housesFilter,X1stFlrSF,X2ndFlrSF,GrLivArea,GarageCars,GarageYrBlt, SalePrice, grupo)
+```
+
+
+Se selecciona el 70% del set de prueba, para el entrenamiento del modelo. Y el otro 30% para su testeo. Acontinuación se presentan las dimensiones de cada uno. 
+
+```{r}
+porciento <- 70/100
+set.seed(123)
+trainRowsNumber<-sample(1:nrow(housesFiltertree),porciento*nrow(housesFiltertree))
+train<-housesFiltertree[trainRowsNumber,]
+test<-housesFiltertree[-trainRowsNumber,]
+nrow(train)
+nrow(test)
+```
+
+A continuación se presenta el árbol de regresión generado a partir de el conjunto datos de prueba.
+
+```{r}
+train$grupo <- mapvalues(train$grupo, c(1,2,3), c("Intermedio","Bajo","Caro"))
+dt_model<-rpart(train$SalePrice~.,train,method = "anova")
+rpart.plot(dt_model)
+```
+
+Al comparar, el conjunto de datos de prueba con el conjunto de datos generados por el árbol optenemos. 
+
+```{r}
+#prediccion <- predict(dt_model, newdata = test[1:5])
+View(prediccion)
+plot(test$SalePrice, col='blue')
+points(prediccion, col='green')
+```
+
+
+```{r echo=FALSE}
+#When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+#The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+```
+
+
