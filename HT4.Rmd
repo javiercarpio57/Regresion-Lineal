@@ -1,0 +1,142 @@
+---
+title: "Modelos de Regresión Lineal"
+author: "Javier Carpio & Paul Belches"
+date: "19/3/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Regresión Lineal Multiple
+
+### Prediciendo SalePrice a partir de las demas variables
+
+#### Conjuntos de entrenamiento y prueba.  
+
+Como los datos están balanceados se hizo una partición aleatoria utilizando el 70% de los datos para entrenamiento y el 30% de los datos para prueba. 
+
+```{r, include=FALSE}
+library(dplyr)
+```
+
+Filtramos las variables que sean numéricas para analizar su comportamiento.
+```{r}
+porcentaje<-0.7
+datos<-read.csv("train.csv")
+
+datosFilter <-select(datos, LotFrontage, LotArea, YearBuilt, YearRemodAdd, MasVnrArea, BsmtFinSF1,BsmtFinSF2,BsmtUnfSF,TotalBsmtSF,X1stFlrSF,X2ndFlrSF,LowQualFinSF,GrLivArea,TotRmsAbvGrd,Fireplaces,GarageYrBlt,GarageCars,GarageArea,WoodDeckSF,OpenPorchSF,EnclosedPorch,ScreenPorch,PoolArea,MoSold,YrSold,SalePrice)
+
+#Data cleanup
+datosFilter <- na.omit(datosFilter)
+```
+
+Se separa el dataset a uno de train y otro de test.
+```{r}
+set.seed(123)
+
+corte <- sample(nrow(datosFilter),nrow(datosFilter)*porcentaje)
+train<-datos[corte,]
+train <- select(train, LotFrontage, LotArea, YearBuilt, YearRemodAdd, MasVnrArea, BsmtFinSF1, BsmtFinSF2, BsmtUnfSF, TotalBsmtSF, X1stFlrSF, X2ndFlrSF, LowQualFinSF, GrLivArea, TotRmsAbvGrd, Fireplaces, GarageYrBlt, GarageCars, GarageArea, WoodDeckSF, OpenPorchSF, EnclosedPorch, ScreenPorch, PoolArea, MoSold, YrSold, SalePrice)
+
+
+test<-datos[-corte,]
+test <- select(test, LotFrontage, LotArea, YearBuilt, YearRemodAdd, MasVnrArea, BsmtFinSF1, BsmtFinSF2, BsmtUnfSF, TotalBsmtSF, X1stFlrSF, X2ndFlrSF, LowQualFinSF, GrLivArea, TotRmsAbvGrd, Fireplaces, GarageYrBlt, GarageCars, GarageArea, WoodDeckSF, OpenPorchSF, EnclosedPorch, ScreenPorch, PoolArea, MoSold, YrSold, SalePrice)
+
+```
+
+Vamos a hacer un modelo para predecir el precio de la casa con las variables numéricas que son numéricas:   
+
+```{r}
+fitMLM_Price<-lm(SalePrice~.,data = train)
+```
+
+El resumen del modelo:
+
+```{r}
+summary(fitMLM_Price)
+```
+  
+Si analizamos este resumen del modelo, podemos observar que es muy malo. La razón de esto, es que estamos analizando todas las variables numéricas, las cuáles puede que muchas no tengan relevancia para predecir el precio. Y, la media de los residuales está muy lejana a 0. Se procederá con eliminar las variables con nivel de significancia distinto a ***.
+
+```{r}
+train <- select(train, LotArea, BsmtFinSF1, BsmtUnfSF, GrLivArea, GarageArea, SalePrice)
+test <- select(test, LotArea, BsmtFinSF1, BsmtUnfSF, GrLivArea, GarageArea, SalePrice)
+
+```
+```{r}
+fitMLM_Price<-lm(SalePrice~.,data = train)
+summary(fitMLM_Price)
+```
+
+  
+Es posible que exista multicolinealidad entre las variables predictoras. Revisemos eso...
+
+```{r}
+plot(train)
+```
+
+```{r}
+# install.packages("corrplot")
+library(corrplot)
+matriz_cor <- cor(train)
+matriz_cor
+corrplot(matriz_cor)
+```
+
+    
+Al ver la correlación entre las variables, se vuelven a filtrar las variables que no aportan al modelo...
+```{r}
+train <- select(train, GrLivArea, GarageArea, SalePrice)
+test <- select(test, GrLivArea, GarageArea, SalePrice)
+
+```
+```{r}
+fitMLM_Price<-lm(SalePrice~.,data = train)
+summary(fitMLM_Price)
+```
+```{r}
+# install.packages("corrplot")
+library(corrplot)
+matriz_cor <- cor(train)
+matriz_cor
+corrplot(matriz_cor)
+```
+  
+Finalmente, se considera que este par de variables: GrLivArea y GarageArea son las variables que tienen una estrecha relación con SalePrice. Ahora, se analizarán los residuos:
+
+```{r}
+plot(fitMLM_Price)
+```
+  
+
+En los gráficos se pueden ver que los residuos están aleatoriamente distribuidos a un valor relativamente cercano a 0 y que no siguen ningún patrón. El gráfico Q-Q parece que no sigue una distribución normal, por lo que se verificara:
+
+```{r}
+hist(fitMLM_Price$residuals)
+boxplot(fitMLM_Price$residuals)
+```
+
+La prueba de lilliefors da que se rechaza la hipotesis de normalidad para un valor de significación de 0.05.
+```{r}
+library(nortest)
+lillie.test(fitMLM_Price$residuals)
+```
+Es posible que el modelo no sea tan bueno para predecir. Pero podemos probarlo.   
+```{r}
+library(caret)
+predMLM<-predict(fitMLM_Price, newdata = test)
+RMSE(predMLM, test$SalePrice)
+```
+
+```{r}
+plot(test$SalePrice,col="blue")
+points(predMLM, col="red")
+```
+  
+La ecuación quedaría:
+
+$SalePrice = `r round(fitMLM_Price$coefficients[3], 2)`*GarageArea + `r round(fitMLM_Price$coefficients[2],2)`*GrLivArea `r round(fitMLM_Price$coefficients[1], 1)`$
+
