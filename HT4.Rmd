@@ -12,6 +12,15 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Regresión Lineal Multiple
 
+De igual manera que en la hoja de trabajo anterior , las variables a utilizar para la creación de árbole de desición son: 
+
+          * GarageYrBlt
+          * GrLivArea
+          * X1stFlrSF
+          * GarageCars
+          * X2stFlrSF
+
+  
 ### Prediciendo SalePrice a partir de las demas variables
 
 #### Conjuntos de entrenamiento y prueba.  
@@ -20,6 +29,13 @@ Como los datos están balanceados se hizo una partición aleatoria utilizando el
 
 ```{r, include=FALSE}
 library(dplyr)
+library(rpart)
+library(caret)
+library(rpart.plot)
+library(randomForest)
+library(dplyr) 
+library(fpc) 
+library(plyr)
 ```
 
 Filtramos las variables que sean numéricas para analizar su comportamiento.
@@ -139,4 +155,51 @@ points(predMLM, col="red")
 La ecuación quedaría:
 
 $SalePrice = `r round(fitMLM_Price$coefficients[3], 2)`*GarageArea + `r round(fitMLM_Price$coefficients[2],2)`*GrLivArea `r round(fitMLM_Price$coefficients[1], 1)`$
+title: "Hoja de trabajo Regresión-lineal"
+output: html_notebook
+---
+
+
+```{r}
+houses <- read.csv("train.csv")
+housesFilter <-select(houses, LotFrontage, LotArea, YearBuilt, YearRemodAdd, MasVnrArea, BsmtFinSF1,BsmtFinSF2,BsmtUnfSF,TotalBsmtSF,X1stFlrSF,X2ndFlrSF,LowQualFinSF,GrLivArea,TotRmsAbvGrd,Fireplaces,GarageYrBlt,GarageCars,GarageArea,WoodDeckSF,OpenPorchSF,EnclosedPorch,ScreenPorch,PoolArea,MoSold,SalePrice,YrSold)
+```
+
+
+Se selecciona el 70% del set de prueba, para el entrenamiento del modelo. Y el otro 30% para su testeo. Acontinuación se presentan las dimensiones de cada uno. 
+
+```{r}
+porciento <- 70/100
+set.seed(123)
+trainRowsNumber<-sample(1:nrow(housesFilter),porciento*nrow(housesFilter))
+train<-housesFilter[trainRowsNumber,]
+test<-housesFilter[-trainRowsNumber,]
+head(train)
+```
+
+A continuación se presenta el árbol de regresión generado a partir de el conjunto datos de prueba.
+
+```{r}
+#train$grupo <- mapvalues(train$grupo, c(1,2,3), c("Intermedio","Bajo","Caro"))
+dt_model<-rpart(train$SalePrice~.,train,method = "anova")
+rpart.plot(dt_model)
+dt_model
+```
+
+Al comparar, el conjunto de datos de prueba con el conjunto de datos generados por el árbol optenemos. 
+
+```{r}
+head(test)
+prediccion <- predict(dt_model, newdata = test)
+plot(test$SalePrice, col='blue')
+points(prediccion, col='green')
+```
+
+
+```{r echo=FALSE}
+#When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
+
+#The preview shows you a rendered HTML copy of the contents of the editor. Consequently, unlike *Knit*, *Preview* does not run any R code chunks. Instead, the output of the chunk when it was last run in the editor is displayed.
+```
+
 
