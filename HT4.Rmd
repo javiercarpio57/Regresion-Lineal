@@ -12,7 +12,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## Regresión Lineal Multiple
 
-De igual manera que en la hoja de trabajo anterior, las variables a utilizar para la creación de árboles de desición son: 
+De igual manera que en la hoja de trabajo anterior, las variables a utilizar para la creación de los modelos son: 
 
           * GarageYrBlt
           * GrLivArea
@@ -113,10 +113,10 @@ lillie.test(fitMLM_Price$residuals)
 Es posible que el modelo no sea tan bueno para predecir, pero veremos gráficamente y analíticamente cómo se comporta.
 ```{r}
 predMLM<-predict(fitMLM_Price, newdata = test)
-RMSE(predMLM, test$SalePrice, na.rm = TRUE)
+RMSE(predMLM, test$SalePrice, na.rm = TRUE) #Error medio cuadrático
 ```
 
-Vemos que el Error cuadrático medio es de: 39799.01, el cuál es muy alto... Si ploteamos los datos predichos contra los reales:
+Vemos que el Error cuadrático medio es es muy alto... Si ploteamos los datos predichos contra los reales:
 
 ```{r}
 plot(test$SalePrice,col="blue")
@@ -169,4 +169,12 @@ points(prediccion, col='green')
 ```
 
 
+El modelo cuenta además con un error medio cuadrático de:
 
+```{r}
+RMSE(test$SalePrice, prediccion)
+```
+
+## En conclusión
+
+En conclusión, basandose en el valor del error medio cuadrático, los modelos son bastante parecidos en lo que respecta a su presición. Sin embargo un análisis gráfico nos muestra que la distribución de puntos del modelo de árbol de regresión está muy categorizada. Los puntos se distribuyen en un patrón observable, dejando valores sin predecir entre cada conjunto; en comparción con su contraparte del modelo de regresión lineal. Es por eso que en lo que respecta a que algoritmo es mejor, se selecciona el modelo de regresión lineal, por la manera en que se encuentran mejor distribuidas sus predicciones. 
